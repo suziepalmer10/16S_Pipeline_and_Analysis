@@ -1,0 +1,40 @@
+sample-id	group
+Clinda1	Clindamycin
+Clinda2	Clindamycin
+Clinda3	Clindamycin
+Clinda4	Clindamycin
+Clinda5	Clindamycin
+Clinda6	Clindamycin
+Clinda8	Clindamycin
+Levo1	Levofloxacin
+Levo2	Levofloxacin
+Levo3	Levofloxacin
+Levo4	Levofloxacin
+Levo5	Levofloxacin
+Levo6	Levofloxacin
+Levo7	Levofloxacin
+Levo8	Levofloxacin
+NoAbx1	No Antibiotics
+NoAbx2	No Antibiotics
+NoAbx3	No Antibiotics
+NoAbx4	No Antibiotics
+NoAbx5	No Antibiotics
+NoAbx6	No Antibiotics
+NoAbx7	No Antibiotics
+NoAbx8	No Antibiotics
+Piptazo1	Piperacillin/Tazobactam
+Piptazo2	Piperacillin/Tazobactam
+Piptazo3	Piperacillin/Tazobactam
+Piptazo4	Piperacillin/Tazobactam
+Piptazo5	Piperacillin/Tazobactam
+Piptazo6	Piperacillin/Tazobactam
+Piptazo7	Piperacillin/Tazobactam
+Piptazo8	Piperacillin/Tazobactam
+PTClinda1	Piperacillin/Tazobactam/Clindamycin
+PTClinda2	Piperacillin/Tazobactam/Clindamycin
+PTClinda3	Piperacillin/Tazobactam/Clindamycin
+PTClinda4	Piperacillin/Tazobactam/Clindamycin
+PTClinda5	Piperacillin/Tazobactam/Clindamycin
+PTClinda6	Piperacillin/Tazobactam/Clindamycin
+PTClinda7	Piperacillin/Tazobactam/Clindamycin
+PTClinda8	Piperacillin/Tazobactam/Clindamycin

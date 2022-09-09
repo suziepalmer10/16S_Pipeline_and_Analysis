@@ -1,0 +1,110 @@
+source ~/anaconda3/etc/profile.d/conda.sh
+#helpful links 
+#https://bioinfo.ird.fr/index.php/tutorials-fr/qiime2-in-command-line/
+
+#activate qiime environment 
+conda activate qiime2-2022.8
+
+#open file to path
+#this needs to be edited!!!!
+cd /Users/suziepalmer/Desktop/trial/data/
+
+#create a manifest file - this is for paired end phred 33
+echo "sample-id, filepath" > manifest.csv
+for i in *R* ; do echo "${i},$PWD/$i"; done >> manifest.csv
+python scripts/parse_manifest.py manifest.csv manifest_parse.csv
+cat manifest_parse.csv | sed 's/,/\t/g' > manifest.txt
+
+
+# Import FASTQ files using manifest file
+time qiime tools import \
+	--type 'SampleData[PairedEndSequencesWithQuality]' \
+	--input-path manifest.txt \
+	--output-path paired-end-demux.qza \
+	--input-format PairedEndFastqManifestPhred33V2
+
+# Check primer trimming
+time qiime cutadapt trim-paired \
+	--i-demultiplexed-sequences paired-end-demux.qza \
+	--p-front-f GTGCCAGCMGCCGCGGTAA \
+	--p-front-r GGACTACHVGGGTWTCTAAT \
+	--o-trimmed-sequences paired-end-demux-trimmed.qza \
+	--verbose
+
+# Denoise and dereplicate paired-end sequences
+time qiime dada2 denoise-paired \
+	--i-demultiplexed-seqs paired-end-demux.qza \
+	--p-trunc-len-f 0 \
+	--p-trunc-len-r 0 \
+	--p-trim-left-f 0 \
+	--p-trim-left-r 0 \
+	--p-max-ee-f 2 \
+	--p-max-ee-r 2 \
+	--o-table table.qza \
+	--o-representative-sequences rep-seqs.qza \
+	--o-denoising-stats stats.qza
+
+time qiime tools export --input-path table.qza --output-path .
+time qiime tools export --input-path rep-seqs.qza --output-path .
+time qiime tools export --input-path stats.qza --output-path .
+
+#note missing jiwoong's perl scripts. Not sure if needed.
+#filters this table 
+time biom convert --input-fp feature-table.biom --output-fp table.tsv --to-tsv
+minimumSampleDepth=$(awk '(NR > 2)' table.tsv | perl scripts/table.extendLines.pl - `head -n2 table.tsv | tail -n1 | awk -F'\t' '{print "1.."NF - 1}'` `head -n2 table.tsv | tail -n1 | cut -f2-` | cut -f2,3 | perl scripts/table.mergeLines.pl -f sum - 0 | cut -f2 | sort -n | head -n1)
+
+time qiime feature-table tabulate-seqs --i-data rep-seqs.qza --o-visualization rep-seqs.qzv
+time qiime metadata tabulate --m-input-file stats.qza --o-visualization stats.qzv
+
+#error occurred when running Jiwoong's script
+#it is recommended to train classifier using my own data using url below
+#https://docs.qiime2.org/2022.8/tutorials/feature-classifier/
+#used the 16s files for silva provided on this page for training
+#only run if you need a classifier for a new system
+#qiime feature-classifier fit-classifier-naive-bayes \
+#  --i-reference-reads silva-138-99-seqs-515-806.qza \
+#  --i-reference-taxonomy silva-138-99-tax-515-806.qza \
+#  --o-classifier classifier.qza
+
+# Pre-fitted sklearn-based taxonomy classifier
+time qiime feature-classifier classify-sklearn \
+	--i-reads rep-seqs.qza \
+	--i-classifier scripts/classifier.qza \
+	--o-classification taxonomy.qza
+
+time qiime tools export --input-path taxonomy.qza --output-path .
+
+time qiime metadata tabulate --m-input-file taxonomy.qza --o-visualization taxonomy.qzv
+
+# Build a phylogenetic tree using fasttree and mafft alignment
+time qiime phylogeny align-to-tree-mafft-fasttree \
+	--i-sequences rep-seqs.qza \
+	--o-alignment aligned-rep-seqs.qza \
+	--o-masked-alignment masked-aligned-rep-seqs.qza \
+	--o-tree unrooted-tree.qza \
+	--o-rooted-tree rooted-tree.qza
+
+time qiime tools export --input-path unrooted-tree.qza --output-path unrooted-tree
+time qiime tools export --input-path rooted-tree.qza --output-path rooted-tree
+
+time perl scripts/table.rearrangeColumns.pl -c taxonomy.tsv 'Feature ID' 'Taxon' | awk '(NR > 1)' | sed 's/; .__unidentified.*$//' | sed 's/; .__uncultured.*$//' | sed 's/; .__metagenome.*$//' | sed 's/; .__gut_metagenome.*$//' | sed 's/\t.*; /\t/' | awk -vOFS='\t' '{print $o, "black"}' > feature.name.color.txt
+
+# summarize dada2 result table
+time qiime feature-table summarize \
+	--i-table table.qza \
+	--m-sample-metadata-file metadata.txt \
+	--o-visualization table.qzv
+
+time qiime taxa barplot \
+	--i-table table.qza \
+	--i-taxonomy taxonomy.qza \
+	--m-metadata-file metadata.txt \
+	--o-visualization barplot.qzv
+
+# Core diversity metrics (phylogenetic and non-phylogenetic)
+time qiime diversity core-metrics-phylogenetic \
+	--i-table table.qza \
+	--i-phylogeny rooted-tree.qza \
+	--p-sampling-depth $minimumSampleDepth \
+	--m-metadata-file metadata.txt \
+	--output-dir core_metrics_results
